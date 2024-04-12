@@ -9,6 +9,8 @@
 #include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
 #include "Network.h"
+#include "moduloSD.h"
+#define SDCARD_CS_PIN 3
 
 String readMeasure(void); ///< Simula las medidas de la ADE9153A, las asocia a un timestamp y crea un Json y String que lo contiene
 
@@ -32,6 +34,7 @@ void startWiFiAP()
 
 void setup()
 {
+  pinMode(3, OUTPUT);
   WiFi.mode(WIFI_STA); ///< explicitly set mode, esp defaults to STA+AP  
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -79,6 +82,7 @@ void setup()
     //if you get here you have connected to the WiFi    
     Serial.println("connected...yeey :)");
   }
+
 
   // Start WiFi
   /*if (WiFiAP)
@@ -154,13 +158,27 @@ void loop()
 String readMeasure (void){
   String toPublish;
   JsonDocument doc;
-
+  char* date  = NTP.getTimeDateStringForJS();
+  char mes[3];
+  char dia[3];
+  sprintf(mes,"%c%c",date[0],date[1]);
+  sprintf(dia,"%c%c",date[3],date[4]);
+  //double es mas preciso que float, pero ocupa el doble de bytes (8)
   //doc["timestamp"] = NTP.getTimeDateStringUs ();
-  doc["timestamp"] = NTP.getTimeDateStringForJS();
-  doc["Vrms"] = (float)random(0.0, 230.0);
-  doc["Irms"] = (float)random(0.0, 5.0);
+  doc["timestamp"] = date;
+  doc["Vrms"] = (float)random(0, 23000)/100.0;
+  doc["Irms"] = (float)random(0, 500)/100.0;
+  doc["W"] = (float)random(0, 115000)/100.0;
+  doc["VAR"] = (float)random(0, 115000)/100.0;
+  doc["VA"] = (float)random(0, 115000)/100.0;
+  doc["PF"] = (float)random(0, 100)/100.0;
 
   serializeJson(doc, toPublish); ///< from Json to String
+  char measurement [toPublish.length() + 1];
+  toPublish.toCharArray(measurement, sizeof(measurement));
+  saveMeasure(mes,dia,measurement);
 
 return toPublish;
 }
+
+
