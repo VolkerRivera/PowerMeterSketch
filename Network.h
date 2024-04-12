@@ -1,0 +1,43 @@
+#ifndef __NETWORK_H
+#define __NETWORK_H
+
+#include "uMQTTBroker.h"
+#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+#include <ESPNtpClient.h>
+
+/* MACROS */
+#define SHOW_TIME_PERIOD 1000 ///< Muestra la hora cada segundo en el loop()
+#define NTP_TIMEOUT 5000 ///< Tiempo que tiene el servidor NTP para responder
+#define NTP_RESYNC_SEC 30
+
+/* SINCRONIZACION NTP */
+extern const PROGMEM char* ntpServer;
+extern bool wifiFirstConnected;
+extern bool syncEventTriggered; // True if a time even has been triggered
+extern NTPEvent_t ntpEvent; // Last triggered event
+
+void doSyncNTP(void);
+void onWifiEvent(WiFiEvent_t event); ///< Permite saber los datos principales tras un intento de conexion
+void processSyncEvent (NTPEvent_t ntpEvent); ///< Handler para cada sincronización NTP
+
+/* WIFI MANAGER */
+
+extern bool wm_nonblocking; // change to true to use non blocking
+
+extern WiFiManager wm; // global wm instance
+extern WiFiManagerParameter custom_field; // global param ( for non blocking w params )
+
+String getParam(String name);
+void saveParamCallback(void);
+
+/* MQTT Broker */
+class myMQTTBroker: public uMQTTBroker {
+public:
+  virtual bool onConnect(IPAddress addr, uint16_t client_count);
+  virtual void onDisconnect(IPAddress addr, String client_id);
+  virtual bool onAuth(String username, String password, String client_id);
+  virtual void onData(String topic, const char *data, uint32_t length);
+  virtual void printClients();
+};
+
+#endif /* __NETWORK_H*/
