@@ -10,6 +10,7 @@
 #include <ArduinoJson.h>
 #include "Network.h"
 #include "moduloSD.h"
+#include <ESP8266mDNS.h>
 #define SDCARD_CS_PIN 3
 
 String readMeasure(void); ///< Simula las medidas de la ADE9153A, las asocia a un timestamp y crea un Json y String que lo contiene
@@ -83,6 +84,13 @@ void setup()
     Serial.println("connected...yeey :)");
   }
 
+  // Iniciar mDNS a direccion esp8266.local
+   if (!MDNS.begin("esp8266")) 
+   {             
+     Serial.println("Error iniciando mDNS");
+   }
+   Serial.println("mDNS iniciado");
+   //MDNS.addService("http", "tcp", 80);
 
   // Start WiFi
   /*if (WiFiAP)
@@ -117,6 +125,7 @@ int counter = 0;
 
 void loop()
 {
+  MDNS.update();
   static int last = 0;
 
   /*
