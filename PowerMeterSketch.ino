@@ -90,7 +90,8 @@ void setup()
      Serial.println("Error iniciando mDNS");
    }
    Serial.println("mDNS iniciado");
-   //MDNS.addService("http", "tcp", 80);
+
+   MDNS.addService("mqtt", "tcp", 1883);
 
   // Start WiFi
   /*if (WiFiAP)
