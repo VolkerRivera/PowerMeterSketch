@@ -11,7 +11,15 @@
 #include "Network.h"
 #include "moduloSD.h"
 #include <ESP8266mDNS.h>
+#include "ADEDriver.h"
 #define SDCARD_CS_PIN 3
+
+struct EnergyRegs energyVals;  //Energy register values are read and stored in EnergyRegs structure
+struct PowerRegs powerVals;    //Metrology data can be accessed from these structures
+struct RMSRegs rmsVals;  
+struct PQRegs pqVals;
+struct AcalRegs acalVals;
+struct Temperature tempVal;
 
 String readMeasure(void); ///< Simula las medidas de la ADE9153A, las asocia a un timestamp y crea un Json y String que lo contiene
 
@@ -112,6 +120,8 @@ void setup()
 
   delay(1000);
 
+  initADE9153A(); //Realizamos el setup del ADE9153A
+
   // Start the broker
   Serial.println("Starting MQTT broker");
   myBroker.init();
@@ -128,6 +138,7 @@ void loop()
 {
   MDNS.update();
   static int last = 0;
+  readandwrite(); //Leemos cada 250 us
 
   /*
    * Se ejecuta una sincronizacion SNTP siempre y cuando no se haya hecho previamente un conexión a 
@@ -146,7 +157,7 @@ void loop()
         processSyncEvent (ntpEvent);
     }
 
-  if ((millis () - last) > SHOW_TIME_PERIOD) {
+  if ((millis () - last) > SHOW_TIME_PERIOD) { //actualizacion cada segundo
     last = millis ();
     Serial.print (counter); Serial.print (" ");
     Serial.print (NTP.getTimeDateStringUs ()); Serial.print (" ");
@@ -174,14 +185,19 @@ String readMeasure (void){
   sprintf(mes,"%c%c",date[0],date[1]);
   sprintf(dia,"%c%c",date[3],date[4]);
   //double es mas preciso que float, pero ocupa el doble de bytes (8)
-  //doc["timestamp"] = NTP.getTimeDateStringUs ();
   doc["timestamp"] = date;
-  doc["Vrms"] = (float)random(0, 23000)/100.0;
+  /*doc["Vrms"] = (float)random(0, 23000)/100.0;
   doc["Irms"] = (float)random(0, 500)/100.0;
   doc["W"] = (float)random(0, 115000)/100.0;
   doc["VAR"] = (float)random(0, 115000)/100.0;
   doc["VA"] = (float)random(0, 115000)/100.0;
-  doc["PF"] = (float)random(0, 100)/100.0;
+  doc["PF"] = (float)random(0, 100)/100.0;*/
+  doc["Vrms"] = serialized(String(rmsVals.VoltageRMSValue, 2));
+  doc["Irms"] = serialized(String(rmsVals.CurrentRMSValue, 2));
+  doc["W"] = serialized(String(powerVals.ActivePowerValue, 2));
+  doc["VAR"] = serialized(String(powerVals.FundReactivePowerValue, 2));
+  doc["VA"] = serialized(String(powerVals.ApparentPowerValue, 2));
+  doc["PF"] = serialized(String(pqVals.PowerFactorValue, 2));
 
   serializeJson(doc, toPublish); ///< from Json to String
   char measurement [toPublish.length() + 1];
