@@ -126,3 +126,89 @@ void saveParamCallback(void){
   Serial.println("PARAM customfieldid = " + getParam("customfieldid"));
 }
 
+/******************************************************/
+                    /* HTTP GET */
+/******************************************************/
+
+/*const char IRG_Root_X1 [] PROGMEM = R"CERT(
+-----BEGIN CERTIFICATE-----
+MIIGNDCCBRygAwIBAgISA/NVy5OWAsL0Uy2cxrAlkpX6MA0GCSqGSIb3DQEBCwUA
+MDIxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBFbmNyeXB0MQswCQYDVQQD
+EwJSMzAeFw0yNDA0MTcwMjEyNThaFw0yNDA3MTYwMjEyNTdaMBwxGjAYBgNVBAMT
+EXByZWNpb2RlbGFsdXoub3JnMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKC
+AgEAnKQ+eVwrkc9Ahu4D5YZw3LC/ftw7vO2Pla+IdHy0iryASUHjXYshuQllfGe4
+himtqp3suBIn8KvOOXrMmpe7AdxQ0AkqdpSJnfJdRTzZ9u2fAtDR5P3ae/OgFBqg
+KMe0DwC1JzAIzK6q3tBwkjJ6sD1W3jINQHpA7FWdMPDQ9zmI1aK7zevpwSntE1pC
+C3kaGp6mpV+nbGbqWNilcwe20aAQl8ShU6w0HnoBfuGvGHoviGh/6BZzTwxyvnC2
+gmDoWEe8RVzhOvl4UqkIfmim2XO+tUAu11iz/dZJEiiEeKUJ090bP4WF15Qx5kmM
+R27wayYCVlJ1WSR5QXGUkR9meBidMDmzMvwRojFHcKk8nMvnlnwm8bon+LPQGIdw
+n1PJq5tU5/wiD08zV3b7QtF9K1mUA4hTBTfOG4YkydjPXNjkEgZz1OgRdcjf3Hbq
+Q3txPse8FU5zpzEq2NO/6Juf0EAb8AhtwgZ4s8TgRLKJDvlxdU8G3CtomOLEL4aY
+qMdmld9uDYBD0G8YqoniGBiv+HcHFDkG6UupbZDOh4h+y1TcRuXszZM4jWQ+dqo0
+broyYDxVhKw+iOQ9/rPaTvdyMQKP2B5wx9RW4XzHkQ6WzoVyyDHucyjlGLMUTMvL
+975p9wNK2+7InQPnqy45YxmrkaN5UpzWz22y9qv+jJGRLH0CAwEAAaOCAlgwggJU
+MA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIw
+DAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUWN5lYgwcYCgQtSEj2jsunqaakSIwHwYD
+VR0jBBgwFoAUFC6zF7dYVsuuUAlA5h+vnYsUwsYwVQYIKwYBBQUHAQEESTBHMCEG
+CCsGAQUFBzABhhVodHRwOi8vcjMuby5sZW5jci5vcmcwIgYIKwYBBQUHMAKGFmh0
+dHA6Ly9yMy5pLmxlbmNyLm9yZy8wYQYDVR0RBFowWIIVYXBpLnByZWNpb2RlbGFs
+dXoub3JnghVhcHAucHJlY2lvZGVsYWx1ei5vcmeCEXByZWNpb2RlbGFsdXoub3Jn
+ghV3d3cucHJlY2lvZGVsYWx1ei5vcmcwEwYDVR0gBAwwCjAIBgZngQwBAgEwggEE
+BgorBgEEAdZ5AgQCBIH1BIHyAPAAdwBIsONr2qZHNA/lagL6nTDrHFIBy1bdLIHZ
+u7+rOdiEcwAAAY7qCxRxAAAEAwBIMEYCIQDCVKROCeK1f+TCCXI+HVMb5IXJTsEJ
+GepaBo+haqQHDAIhANTn3PdbW2RsRq8vTF8Exu6iDZR9yHzcVK6VdPopR7FfAHUA
+O1N3dT4tuYBOizBbBv5AO2fYT8P0x70ADS1yb+H61BcAAAGO6gsUfAAABAMARjBE
+AiAEAhVtNw4dD37kG0ClymNGbwjSFOz1jxu4oiywvX6ayAIgWzlf4kiArAbaAU4Q
+BoGhXkkcPmXI9KWe89i32I8U3EIwDQYJKoZIhvcNAQELBQADggEBADOqr24al2aR
+ZY6PFoadleC+a/vFfcJbZGqCb+iCIR4Z5cPj7T0s55iBPXXngkB8fu0BotAcI0yp
+kKsYP1vs43+q5TCX3QRK7IT+vwBsdtNThwq70OV/3JK7ZQ84dTtP6K+fuslEVJuy
+mr2rI7fa2IoJfDqKpQzakwp6sLgpjSH2yEo17LFBNI9ox/Vn6aNg31Gf9H3Q/CI9
+lwrVOoQpGnvKtDnwsK6QPYx4JpPCioSG9BQKa+zVRrTng3APbZcmEyLodOQjlh+i
+ao6YUD93NXEc3l+NXZqLk6OZfOnL8O7iplkHfLiZIenpwaagWN8brzsAFe9J6DX6
+scxqrxeHfcA=
+-----END CERTIFICATE-----
+)CERT";
+
+X509List cert(IRG_Root_X1);*/
+
+String callAPI(void){ //No funciona con el certificado
+  String payload = "";
+
+  if(WiFi.status() == WL_CONNECTED){
+
+    HTTPClient https;
+    //WiFiClientSecure client;
+    //client.setTrustAnchors(&cert);
+    std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
+    client->setInsecure();
+    const String serverURL = "https://api.preciodelaluz.org/v1/prices/all?zone=PCB";
+    
+
+    https.begin(*client, serverURL); // String -> const char[]
+    int httpCode = https.GET();
+
+    if (httpCode > 0) {
+        // HTTP header has been send and Server response header has been handled
+      Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
+
+      // file found at server
+      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+        payload = https.getString().c_str();
+        https.end(); //Liberamos recursos
+        return payload;
+        Serial.println(payload);
+      }
+      } else {
+        Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+      }
+
+    https.end(); //Liberamos recursos
+
+  }else{
+    Serial.println("Error: WiFi desconectado");
+  }
+  return payload;
+}
+
+
+

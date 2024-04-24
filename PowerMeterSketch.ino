@@ -6,11 +6,9 @@
  * Try to connect from a remote client and publish something - the console will show this as well.
  */
 
-#include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
 #include "Network.h"
 #include "moduloSD.h"
-#include <ESP8266mDNS.h>
 #include "ADEDriver.h"
 #define SDCARD_CS_PIN 3
 
@@ -20,6 +18,9 @@ struct RMSRegs rmsVals;
 struct PQRegs pqVals;
 struct AcalRegs acalVals;
 struct Temperature tempVal;
+
+double precioPorHora[24];
+char ultimoDiaGuardado[3];
 
 String readMeasure(void); ///< Simula las medidas de la ADE9153A, las asocia a un timestamp y crea un Json y String que lo contiene
 
@@ -120,7 +121,7 @@ void setup()
 
   delay(1000);
 
-  initADE9153A(); //Realizamos el setup del ADE9153A
+  //initADE9153A(); //Realizamos el setup del ADE9153A
 
   // Start the broker
   Serial.println("Starting MQTT broker");
@@ -138,7 +139,7 @@ void loop()
 {
   MDNS.update();
   static int last = 0;
-  readandwrite(); //Leemos cada 250 us
+  //readandwrite(); //Leemos cada 250 us
 
   /*
    * Se ejecuta una sincronizacion SNTP siempre y cuando no se haya hecho previamente un conexión a 
@@ -173,38 +174,68 @@ void loop()
     myBroker.publish("broker/counter", (String)counter++);
     myBroker.publish("broker/measure", readMeasure());
     
+    //callAPI();
   }
 }
 
 String readMeasure (void){
-  String toPublish;
-  JsonDocument doc;
-  char* date  = NTP.getTimeDateStringForJS();
+  String toPublish; //String que contiene lo que se publicara en el topic
+  JsonDocument doc; //Servira para dar formato json a las medidas
+  String json; //JSON que nos devuelve la API de precios
+  const size_t capacity = JSON_OBJECT_SIZE(24) + 24*JSON_OBJECT_SIZE(7) + 1024;
+  StaticJsonDocument<capacity> precioDoc; //JSON solo con los precios
+  char* date  = NTP.getTimeDateStringForJS(); //obtenemos el timestamp 
   char mes[3];
   char dia[3];
-  sprintf(mes,"%c%c",date[0],date[1]);
-  sprintf(dia,"%c%c",date[3],date[4]);
+  sprintf(mes,"%c%c",date[0],date[1]); //obtenemos el mes y dia
+  sprintf(dia,"%c%c",date[3],date[4]); //obtenemos el mes y dia
   //double es mas preciso que float, pero ocupa el doble de bytes (8)
+  if(dia != ultimoDiaGuardado){
+    json = callAPI();
+    if(json.isEmpty()){
+      Serial.println("callAPI no ha devuelto nada");
+    }
+    DeserializationError error = deserializeJson(precioDoc, json);
+    if (error) {
+      Serial.println("deserializeJson() failed: ");
+    }
+    for(uint8_t i = 0; i<24; i++){
+      // Construir la clave para cada hora, por ejemplo "00-01", "01-02", etc.
+      char entry[6]; 
+      sprintf(entry, "%02d-%02d", i, (i + 1) % 24); //itera entradas de "00-01" a "23-00"
+
+      // Acceder al objeto anidado usando la clave
+      JsonObject nested = precioDoc[entry]; // Obtiene el JSON dentro de esa entry
+
+      // Extraer el valor de "price" y almacenarlo en el array
+      precioPorHora[i] = nested["price"]; 
+      Serial.print(precioPorHora[i]/1000,4); //< Dividimos entre 1000 para pasar el precio de €/MWh a €/kWh
+    }
+  }
+
   doc["timestamp"] = date;
-  /*doc["Vrms"] = (float)random(0, 23000)/100.0;
+  doc["Vrms"] = (float)random(0, 23000)/100.0;
   doc["Irms"] = (float)random(0, 500)/100.0;
   doc["W"] = (float)random(0, 115000)/100.0;
   doc["VAR"] = (float)random(0, 115000)/100.0;
   doc["VA"] = (float)random(0, 115000)/100.0;
-  doc["PF"] = (float)random(0, 100)/100.0;*/
-  doc["Vrms"] = serialized(String(rmsVals.VoltageRMSValue, 2));
+  doc["PF"] = (float)random(0, 100)/100.0;
+
+  /*doc["Vrms"] = serialized(String(rmsVals.VoltageRMSValue, 2));
   doc["Irms"] = serialized(String(rmsVals.CurrentRMSValue, 2));
   doc["W"] = serialized(String(powerVals.ActivePowerValue, 2));
   doc["VAR"] = serialized(String(powerVals.FundReactivePowerValue, 2));
   doc["VA"] = serialized(String(powerVals.ApparentPowerValue, 2));
-  doc["PF"] = serialized(String(pqVals.PowerFactorValue, 2));
+  doc["PF"] = serialized(String(pqVals.PowerFactorValue, 2));*/
 
   serializeJson(doc, toPublish); ///< from Json to String
   char measurement [toPublish.length() + 1];
   toPublish.toCharArray(measurement, sizeof(measurement));
   saveMeasure(mes,dia,measurement);
 
-return toPublish;
+  return toPublish;
 }
+
+
 
 
