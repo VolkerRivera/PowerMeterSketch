@@ -3,7 +3,12 @@
 
 #include "uMQTTBroker.h"
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+#include <ESP8266WiFi.h>
 #include <ESPNtpClient.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClientSecure.h>
+#include <ESP8266mDNS.h>
+#include <WiFiClientSecureBearSSL.h>
 
 /* MACROS */
 #define SHOW_TIME_PERIOD 1000 ///< Muestra la hora cada segundo en el loop()
@@ -39,5 +44,8 @@ public:
   virtual void onData(String topic, const char *data, uint32_t length);
   virtual void printClients();
 };
+
+/* HTTPS */
+String callAPI(void);
 
 #endif /* __NETWORK_H*/
