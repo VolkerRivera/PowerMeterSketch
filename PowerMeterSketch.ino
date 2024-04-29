@@ -12,6 +12,8 @@
 #include "ADEDriver.h"
 #define SDCARD_CS_PIN 3
 
+
+
 struct EnergyRegs energyVals;  //Energy register values are read and stored in EnergyRegs structure
 struct PowerRegs powerVals;    //Metrology data can be accessed from these structures
 struct RMSRegs rmsVals;  
@@ -21,6 +23,7 @@ struct Temperature tempVal;
 
 double precioPorHora[24];
 char ultimoDiaGuardado[3];
+extern uint8_t numDesconexiones;
 
 String readMeasure(void); ///< Simula las medidas de la ADE9153A, las asocia a un timestamp y crea un Json y String que lo contiene
 
@@ -158,7 +161,8 @@ void loop()
         processSyncEvent (ntpEvent);
     }
 
-  if ((millis () - last) > SHOW_TIME_PERIOD) { //actualizacion cada segundo
+  if(numDesconexiones < 5){
+    if ((millis () - last) > SHOW_TIME_PERIOD) { //actualizacion cada segundo
     last = millis ();
     Serial.print (counter); Serial.print (" ");
     Serial.print (NTP.getTimeDateStringUs ()); Serial.print (" ");
@@ -173,9 +177,17 @@ void loop()
     */
     myBroker.publish("broker/counter", (String)counter++);
     myBroker.publish("broker/measure", readMeasure());
-    
-    //callAPI();
+    Serial.println("---------------------------------------");
+    myBroker.printClients();
+    Serial.println(myBroker.getClientCount());
+    Serial.println();
+    Serial.println("---------------------------------------");
+    }
+  }else{
+    numDesconexiones = 0;
+    ESP.reset(); //Hacemos un reset ya que de otra forma el Broker no volvera a aceptar mas conexiones
   }
+  
 }
 
 String readMeasure (void){
@@ -190,7 +202,13 @@ String readMeasure (void){
   sprintf(mes,"%c%c",date[0],date[1]); //obtenemos el mes y dia
   sprintf(dia,"%c%c",date[3],date[4]); //obtenemos el mes y dia
   //double es mas preciso que float, pero ocupa el doble de bytes (8)
-  if(dia != ultimoDiaGuardado){
+  Serial.print("Dia actual: ");
+  Serial.print(dia);
+  Serial.print(" Ultimo dia guardado: ");
+  Serial.println(ultimoDiaGuardado);
+
+
+  if(strcmp(dia, ultimoDiaGuardado) != 0){
     json = callAPI();
     if(json.isEmpty()){
       Serial.println("callAPI no ha devuelto nada");
@@ -213,14 +231,15 @@ String readMeasure (void){
     }
   }
 
-  doc["timestamp"] = date;
-  doc["Vrms"] = (float)random(0, 23000)/100.0;
-  doc["Irms"] = (float)random(0, 500)/100.0;
-  doc["W"] = (float)random(0, 115000)/100.0;
-  doc["VAR"] = (float)random(0, 115000)/100.0;
-  doc["VA"] = (float)random(0, 115000)/100.0;
-  doc["PF"] = (float)random(0, 100)/100.0;
+  strcpy(ultimoDiaGuardado, dia);
 
+  doc["timestamp"] = date;
+  doc["Vrms"] = serialized(String((float)random(0, 23000)/100.0, 2));
+  doc["Irms"] = serialized(String((float)random(0, 500)/100.0, 2));
+  doc["W"] = serialized(String((float)random(0, 115000)/100.0, 2));
+  doc["VAR"] = serialized(String((float)random(0, 115000)/100.0, 2));
+  doc["VA"] = serialized(String((float)random(0, 115000)/100.0, 2));
+  doc["PF"] = serialized(String((float)random(0, 100)/100.0, 2));
   /*doc["Vrms"] = serialized(String(rmsVals.VoltageRMSValue, 2));
   doc["Irms"] = serialized(String(rmsVals.CurrentRMSValue, 2));
   doc["W"] = serialized(String(powerVals.ActivePowerValue, 2));
@@ -232,6 +251,8 @@ String readMeasure (void){
   char measurement [toPublish.length() + 1];
   toPublish.toCharArray(measurement, sizeof(measurement));
   saveMeasure(mes,dia,measurement);
+
+  Serial.println("Número de conexiones hechas: " + (String) numDesconexiones);
 
   return toPublish;
 }

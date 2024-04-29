@@ -11,14 +11,14 @@
 #include <WiFiClientSecureBearSSL.h>
 
 /* MACROS */
-#define SHOW_TIME_PERIOD 1000 ///< Muestra la hora cada segundo en el loop()
+#define SHOW_TIME_PERIOD 1000 ///< Muestra la hora cada 5 segundos en el loop()
 #define NTP_TIMEOUT 5000 ///< Tiempo que tiene el servidor NTP para responder
 #define NTP_RESYNC_SEC 30
 
 /* SINCRONIZACION NTP */
 extern const PROGMEM char* ntpServer;
 extern bool wifiFirstConnected;
-extern bool syncEventTriggered; // True if a time even has been triggered
+extern bool syncEventTriggered; // True if a time event has been triggered
 extern NTPEvent_t ntpEvent; // Last triggered event
 
 void doSyncNTP(void);
