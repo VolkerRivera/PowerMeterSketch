@@ -1,4 +1,5 @@
 #include "Network.h"
+#include <memory>
 uint8_t numDesconexiones = 0;
 /********************************************/
 /* BROKER MQTT */
@@ -77,10 +78,13 @@ void onWifiEvent(WiFiEvent_t event) {
   }
 }
 
+bool NTPsincronizado = false;
+
 void processSyncEvent(NTPEvent_t ntpEvent) {
   switch (ntpEvent.event) {  ///< Distinción entre eventos para diferente procesado o depuración
     case timeSyncd:
     case partlySync:
+      NTPsincronizado = true;
     case syncNotNeeded:
     case accuracyError:  ///< Información sobre el error de precisión
       Serial.printf("[NTP-event] %s\n", NTP.ntpEvent2str(ntpEvent));
@@ -129,6 +133,7 @@ void saveParamCallback(void) {
 /* HTTP GET */
 /******************************************************/
 
+/*
 const char IRG_Root_X1 [] PROGMEM = R"CERT(
 -----BEGIN CERTIFICATE-----
 MIIGNDCCBRygAwIBAgISA/NVy5OWAsL0Uy2cxrAlkpX6MA0GCSqGSIb3DQEBCwUA
@@ -168,22 +173,26 @@ scxqrxeHfcA=
 -----END CERTIFICATE-----
 )CERT";
 
-X509List cert(IRG_Root_X1);
+X509List cert(IRG_Root_X1);*/
+
+/* MUY IMPORTANTE */
+/* Es imprescindible que tanto el certificado como la lista no sean compiladas porque si no dará error */
 
 String callAPI(void) {  //No funciona con el certificado
   String payload = "";
 
   if (WiFi.status() == WL_CONNECTED) {
     
+    /* Necesario hacer una peticion segura para poder relacionar las medidas de consumo de energía por hora al precio de la energía por hora */
+    
     std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
-    client->setInsecure();
     const String serverURL = "https://api.preciodelaluz.org/v1/prices/all?zone=PCB";
+
+    client->setInsecure();
     HTTPClient https;
     
     https.begin(*client, serverURL); // String -> const char[]
     int httpCode = https.GET();
-
-    String payload;
 
     if (httpCode > 0) {
       // HTTP header has been send and Server response header has been handled
@@ -191,10 +200,12 @@ String callAPI(void) {  //No funciona con el certificado
 
       // file found at server
       if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-        String payloadOK = https.getString();
+        payload = https.getString();
         https.end();  //Liberamos recursos
-        return payloadOK;
-        Serial.println(payloadOK);
+        Serial.print("Se ha obtenido la siguiente respuesta del servidor: ");
+        Serial.println(payload);
+        return payload;
+        
       }
     } else {
       Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());

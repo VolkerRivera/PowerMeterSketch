@@ -18,6 +18,7 @@ void initADE9153A(void){
   pinMode(USER_INPUT, INPUT);
   pinMode(ADE9153A_RESET_PIN, OUTPUT);
   digitalWrite(ADE9153A_RESET_PIN, HIGH); 
+
   resetADE9153A();  //Reset ADE9153A for clean startup
   delay(1000);
 
@@ -32,7 +33,7 @@ void initADE9153A(void){
   ade9153A.SetupADE9153A(); //Setup ADE9153A according to ADE9153AAPI.h
   /* Read and Print Specific Register using ADE9153A SPI Library */
   Serial.println(String(ade9153A.SPI_Read_32(REG_VERSION_PRODUCT), HEX)); // Version of IC
-  ade9153A.SPI_Write_32(REG_AIGAIN, -268435456); //AIGAIN to -1 to account for IAP-IAN swap
+  ade9153A.SPI_Write_32(REG_AIGAIN, -268435456); //AIGAIN to -1 to account for IAP-IAN swap ORIGINAL
   delay(500);
 }
 
@@ -49,7 +50,7 @@ void readandwrite() //metodo que lee los registros de medida y actualiza las var
     ade9153A.ReadTemperature(&tempVal);  // Read temperature
   }
   
-  inputState = digitalRead(USER_INPUT);
+  inputState = digitalRead(USER_INPUT); //< UNICAMENTE SE HACE AUTOCALIBRACION CUANDO SE PULSA USER INPUT 
 
   if(inputState == LOW){
     autocalibrateADE9153A();
@@ -57,27 +58,30 @@ void readandwrite() //metodo que lee los registros de medida y actualiza las var
 
 }
 
-void resetADE9153A(void)
+void resetADE9153A(void) //< Reset del ADE9153A: Falling edge en su pin de RESET
 {
- digitalWrite(ADE9153A_RESET_PIN, LOW);
+ digitalWrite(ADE9153A_RESET_PIN, LOW); 
  delay(100);
  digitalWrite(ADE9153A_RESET_PIN, HIGH);
  delay(1000);
- Serial.println("Reset Done");
+ Serial.println("ADE9153A reset Done");
 }
 
 void autocalibrateADE9153A(void){
+    //ade9153A.SetupADE9153A(); //Setup ADE9153A according to ADE9153AAPI.h
     Serial.println("Autocalibrating Current Channel");
-    ade9153A.StartAcal_AINormal();
-    runLength(20);
-    ade9153A.StopAcal();
+    if(!ade9153A.StartAcal_AINormal()) //< Empieza calibracion del canal de corriente A en modo normal
+    Serial.println("Error en calibracion CH A I");
+    runLength(20); //< Parpadea el led durante 20 segundos ?
+    ade9153A.StopAcal(); //< PFinaliza la autocalibración que se este dando en el canal A
     Serial.println("Autocalibrating Voltage Channel");
-    ade9153A.StartAcal_AV();
-    runLength(40);
-    ade9153A.StopAcal();
-    delay(100);
+    if(!ade9153A.StartAcal_AV()) //< Empieza la autocalibración del canal de tension A
+    Serial.println("Error en calibracion CH A V");
+    runLength(40);//< Parpadea el led durante 40 segundos
+    ade9153A.StopAcal(); //< Finaliza la autocalibración que se este dando en el canal A
+    delay(100); //< Se introduce un delay de 100 ms
     
-    ade9153A.ReadAcalRegs(&acalVals);
+    ade9153A.ReadAcalRegs(&acalVals); //< Lee los registros de calibración del canal A
     Serial.print("AICC: ");
     Serial.println(acalVals.AICC);
     Serial.print("AICERT: ");
@@ -86,12 +90,14 @@ void autocalibrateADE9153A(void){
     Serial.println(acalVals.AVCC);
     Serial.print("AVCERT: ");
     Serial.println(acalVals.AcalAVCERTReg);
-    long Igain = (-(acalVals.AICC / 838.190) - 1) * 134217728;
-    long Vgain = ((acalVals.AVCC / 13411.05) - 1) * 134217728;
-    ade9153A.SPI_Write_32(REG_AIGAIN, Igain);
-    ade9153A.SPI_Write_32(REG_AVGAIN, Vgain);
+    //Target conversion constant: TARGET_AICC = 838.19082 nA/Code
+    long Igain = (-(acalVals.AICC / 838.19082) - 1) * 134217728; //< Ganancia de corriente para la calibración
+    //Target conversion constant: TARGET_AVCC = 13424.43526 nV/Code
+    long Vgain = ((acalVals.AVCC / 13424.43526) - 1) * 134217728; //< Ganancia de tension para la calibración
+    ade9153A.SPI_Write_32(REG_AIGAIN, Igain); //Escribe la ganancia en los registros
+    ade9153A.SPI_Write_32(REG_AVGAIN, Vgain); //Escribe la ganancia en los registros
     
-    Serial.println("Autocalibration Complete");
+    Serial.println("Autocalibration Complete"); //Una vez se ha escrito en los registros, se completa la autocalibración
     delay(2000);
   }
 
@@ -101,9 +107,9 @@ void runLength(long seconds)
   unsigned long startTime = millis();
   
   while (millis() - startTime < (seconds*1000)){
-    digitalWrite(LED_BUILTIN, HIGH);
+    //digitalWrite(LED_BUILTIN, HIGH);
     delay(blinkInterval);
-    digitalWrite(LED_BUILTIN, LOW);
+    //digitalWrite(LED_BUILTIN, LOW);
     delay(blinkInterval);
   }  
 }
