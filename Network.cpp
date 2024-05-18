@@ -177,7 +177,40 @@ X509List cert(IRG_Root_X1);*/
 
 /* MUY IMPORTANTE */
 /* Es imprescindible que tanto el certificado como la lista no sean compiladas porque si no dará error */
+String callAPI(void) {
+    String payload = "";
+    if (WiFi.status() == WL_CONNECTED) {
+        std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+        //const String serverURL = "https://api.preciodelaluz.org/v1/prices/all?zone=PCB";
+        //WiFiClientSecure client;
+        client->setInsecure();
+        HTTPClient https;
 
+        Serial.print("Conectando a: https://api.preciodelaluz.org/v1/prices/all?zone=PCB");
+        //Serial.println(serverURL);
+        https.setUserAgent("Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0");
+        https.begin(*client, "https://api.preciodelaluz.org/v1/prices/all?zone=PCB"); 
+        int httpCode = https.GET();
+
+        Serial.print("Código de respuesta: ");
+        Serial.println(httpCode);
+
+        if (httpCode > 0 && httpCode == HTTP_CODE_OK) { 
+            payload = https.getString(); 
+            Serial.println("Payload recibido:");
+            Serial.println(payload);
+            https.end(); // Liberar recursos
+            return payload;
+        } else {
+            Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+            https.end(); // Liberar recursos en caso de error también
+        }
+    } else {
+        Serial.println("Error: WiFi desconectado");
+    }
+    return payload;
+}
+/*
 String callAPI(void) {  //No funciona con el certificado
   String payload = "";
 
@@ -185,7 +218,7 @@ String callAPI(void) {  //No funciona con el certificado
     
     /* Necesario hacer una peticion segura para poder relacionar las medidas de consumo de energía por hora al precio de la energía por hora */
     
-    std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
+    /*std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
     const String serverURL = "https://api.preciodelaluz.org/v1/prices/all?zone=PCB";
 
     client->setInsecure();
@@ -218,3 +251,4 @@ String callAPI(void) {  //No funciona con el certificado
   }
   return payload;
 }
+*/
