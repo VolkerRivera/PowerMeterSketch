@@ -11,5 +11,5 @@ void saveEnergyPerSecond(String timestamp, float energyAcum); // permite guardar
 float readEnergy_Accumulation(void); 
 uint8_t readHour_LastMeasure(void);
 String readTimestamp_LastMeasure(void);
-String readDataOfThisDay(void);
+String readDataOfThisDay(String filePath);
 #endif /* __MODULOSD_H*/

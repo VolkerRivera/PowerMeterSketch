@@ -23,11 +23,11 @@ void saveEnergyPerHour(char carpeta[], char archivo[], String measurement) {
   }
 }
 
-String readDataOfThisDay(){
+String readDataOfThisDay(String filePath){
   String data = "";
   if (SD.begin(SDCARD_CS_PIN)) {
     Serial.println("La tarjeta microSD detectada correctamente.");
-    File myFile = SD.open("/05/19.txt", FILE_READ);
+    File myFile = SD.open(filePath, FILE_READ);
     if (myFile) { // Check if file was opened successfully
       // Read timestamp (assuming valid format)
       data = myFile.readString();
