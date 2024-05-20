@@ -3,6 +3,7 @@
 #include "Network.h"
 #include "moduloSD.h"
 #include "ADEDriver.h"
+#include <TimerEvent.h>
 #define SDCARD_CS_PIN 3
 
 
@@ -19,6 +20,8 @@ String precioHoy = "";
 extern uint8_t numDesconexiones;
 extern bool NTPsincronizado;
 float acumulador = 0;
+bool transmissionFinished = true;
+bool mdnsUsed = false;
 
 String readMeasure(void);  ///< Simula las medidas de la ADE9153A, las asocia a un timestamp y crea un Json y String que lo contiene
 
@@ -40,7 +43,10 @@ void startWiFiAP()
   Serial.println("IP address: " + WiFi.softAPIP().toString());
 }*/
 
+TimerEvent powerTimer;
+
 void setup() {
+  randomSeed( (unsigned long)( micros()%millis() ) ); // new
   pinMode(3, OUTPUT);
   WiFi.mode(WIFI_STA);  ///< explicitly set mode, esp defaults to STA+AP
   Serial.begin(115200);
@@ -99,6 +105,7 @@ void setup() {
   Serial.println("mDNS iniciado");
 
   MDNS.addService("mqtt", "tcp", 1883);
+  
 
   // Start WiFi
   /*if (WiFiAP)
@@ -114,7 +121,7 @@ void setup() {
 
   WiFi.onEvent(onWifiEvent);  //Ahora mismo no hace nada porque WIFIMANAGER es bloqueante?
 
-  /* Sincronizar */
+  /* Comienza sincronizacion NTP */
   doSyncNTP();
 
   delay(1000);
@@ -126,23 +133,19 @@ void setup() {
   /*
  * Subscribe to anything
  */
+ 
   myBroker.subscribe("#");
+  powerTimer.set(1000, powerFunction);
 
   delay(1000);
 }
 
 void loop() {  //<--------------------- LOOP
+  powerTimer.update();
   MDNS.update();
-  static int last = 0;
+  static int lastPower = 0;
+  static int lastGraphics = 0;
   //readandwrite();  //Leemos cada 250 us
-
-  /*
-   * Se ejecuta una sincronizacion SNTP siempre y cuando no se haya hecho previamente un conexión a 
-   * red WiFi, tras esta sincronización no se hacen más rexonexiones SNTP hasta que no se vuelva a 
-   * conectar/reconectar a una red WiFi de nuevo.  
-   */
-
-  doSyncNTP();
 
   /*
    * Si salta algún evento SNTP se procesa
@@ -153,19 +156,32 @@ void loop() {  //<--------------------- LOOP
     processSyncEvent(ntpEvent);
   }
 
+  
+}
+
+void powerFunction(){
   /************************************************************
    *  Lectura de registros de medida y procesado de los mismos
    ************************************************************/
 
   if (numDesconexiones < 5) {                    //< Solo funciona normalmente cuando han habido menos de 6 conexiones
-    if ((millis() - last) > SHOW_TIME_PERIOD) {  //actualizacion cada segundo
-      last = millis();
-      Serial.println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+
+    // GESTION GRAPHICS SCREEN
+    /*if(!transmissionFinished){
+      if((millis() - lastGraphics) > PERIOD_GRAPHICS){
+        myBroker.publish("broker/register", readDataOfThisDay());
+        transmissionFinished = true;
+      }
+    }*/
+
+    // GESTION POWER SCREEN
+    //if ((millis() - lastPower) > PERIOD_POWER) {  //actualizacion cada segundo
+      //lastPower = millis();
+      Serial.println("\n\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
       String mqttViewToPublish;  //String que contiene lo que se publicara en el topic
       String toSave;             //String que contiene el json que se guardara en la microSD
       float preciokWh;
       JsonDocument mqttView;  //Servira para dar formato json a las medidas <--- para medidor de potencia
-      //char* date = NTP.getTimeDateStringForJS();  //obtenemos la fecha para medidor potencia en tiempo real <- 
       char* date = NTP.getTimeDateString(time(NULL), "%04Y-%02m-%02d %02H:%02M:%02S");
       String date_reg = readTimestamp_LastMeasure();
       //String timestamp = NTP.getTimeDateString(time(NULL), "%04Y-%02m-%02d %02H:%02M:%02S"); yyyy-mm-dd hh:mm:ss
@@ -174,9 +190,6 @@ void loop() {  //<--------------------- LOOP
       char hora[3];
       //> 05/06/2024 15:17:21 [11][12] corresponden a la hora en date, en timestamp lo tenemos en formato YYYY/MM/DD HH:MM:SS
 
-      /*sprintf(mes, "%c%c", date[0], date[1]);     //obtenemos el mes
-      sprintf(dia, "%c%c", date[3], date[4]);     //obtenemos el dia
-      sprintf(hora, "%c%c", date[11], date[12]);  //obtenemos la hora*/
       sprintf(mes, "%c%c", date[5], date[6]);     //obtenemos el mes
       sprintf(dia, "%c%c", date[8], date[9]);     //obtenemos el dia
       sprintf(hora, "%c%c", date[11], date[12]);  //obtenemos la hora
@@ -195,13 +208,13 @@ void loop() {  //<--------------------- LOOP
         acumulador = readEnergy_Accumulation() + (float)random(0, 500) / 100.0;
         mqttView["timestamp"] = date;
 
-        /* numeros aleatorios */
-        mqttView["Vrms"] = serialized(String((float)random(0, 23000) / 100.0, 2));
-        mqttView["Irms"] = serialized(String((float)random(0, 500) / 100.0, 2));
-        mqttView["W"] = serialized(String((float)random(0, 115000) / 100.0, 2));
-        mqttView["VAR"] = serialized(String((float)random(0, 115000) / 100.0, 2));
-        mqttView["VA"] = serialized(String((float)random(0, 115000) / 100.0, 2));
-        mqttView["PF"] = serialized(String((float)random(0, 100) / 100.0, 2));
+        // numeros aleatorios
+        mqttView["Vrms"] = serialized(String((float)random(22900, 23000) / 100.0, 2));
+        mqttView["Irms"] = serialized(String((float)random(499, 500) / 100.0, 2));
+        mqttView["W"] = serialized(String((float)random(114990, 115000) / 100.0, 2));
+        mqttView["VAR"] = serialized(String((float)random(114990, 115000) / 100.0, 2));
+        mqttView["VA"] = serialized(String((float)random(114990, 115000) / 100.0, 2));
+        mqttView["PF"] = serialized(String((float)random(90, 100) / 100.0, 2));
 
 
         // info proveniente del ADE
@@ -214,7 +227,7 @@ void loop() {  //<--------------------- LOOP
         mqttView["PF"] = serialized(String(pqVals.PowerFactorValue, 2));*/
         
 
-        mqttView["frec"] = serialized("50.00");  // TODO: insertarlo en la app
+        //mqttView["frec"] = serialized("50.00");  // TODO: insertarlo en la app
 
         serializeJson(mqttView, mqttViewToPublish);  ///< from Json to String
 
@@ -225,6 +238,7 @@ void loop() {  //<--------------------- LOOP
         */
 
         myBroker.publish("broker/measure", mqttViewToPublish);  //<---- Broker publica
+        myBroker.publish("broker/register", readDataOfThisDay());
 
         Serial.println("---------------------------------------");  //<---- Muestra clientes mqtt conectados
         myBroker.printClients();
@@ -343,113 +357,11 @@ void loop() {  //<--------------------- LOOP
           ESP.reset();                               // finalmente se resetea la esp
         }
       }  // Si NTP no sincronizado no se hará nada ya que se necesita sincronizacion para llevar control de precios, medidas y guardado con timestamp
-    }
-    Serial.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+      Serial.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+    //}
+    
   } else {                 // a la quinta desconexion
     numDesconexiones = 0;  //< no es necesario ya que se reseteara y volvera a 0 automaticamente
     ESP.reset();           //Hacemos un reset ya que de otra forma el Broker no volvera a aceptar mas conexiones
   }
 }
-
-/*String readMeasure(void) {  //< Se ejecuta cada segundo
-
-  //Se comprueba si la ultima fecha anotada en el txt es la misma que se acaba de sincronizar
-  if (!existPriceToday(date)) {
-    //En caso de estar sincronizado con el servidor NTP se llama a la API
-    if (NTPsincronizado) {
-      NTPsincronizado = false;  // necesario para que la siguiente medida, entre al else y se reinicie la esp
-      //se obtiene el json
-      do {
-        json = callAPI();  // https request a la api de precios
-      } while (json.isEmpty());
-      //se comprueba si esta vacio o no
-      if (json.isEmpty()) {
-        Serial.println("callAPI no ha devuelto nada");
-      }
-      //en caso de no estar vacio se chopea
-      DeserializationError error = deserializeJson(precioDoc, json);
-      //si ocurre algun error al chopear se reporta
-      if (error) {
-        Serial.println("deserializeJson() failed: ");
-      }
-      //se extraen los 24 precios que contiene el json
-      for (uint8_t i = 0; i < 24; i++) {
-        // Construir la clave para cada hora, por ejemplo "00-01", "01-02", etc.
-        char entry[6];
-        //sprintf(entry, "%02d-%02d", i, (i + 1) % 24);  //itera entradas de "00-01" a "23-24"
-        sprintf(entry, "%02d-%02d", i, (i + 1));
-        // Acceder al objeto anidado usando la clave
-        JsonObject nested = precioDoc[entry];  // Obtiene el JSON dentro de esa entry
-
-        // Extraer el valor de "price" y almacenarlo en el array de 24 doubles precioPorHora
-        precioPorHora[i] = nested["price"];
-        //A su vez, concatenamos estos valores para diferentes lineas con 5 decimalaes
-        precioHoy = precioHoy + String(precioPorHora[i] / 1000, 5) + "\n";
-      }
-      int precioHoyLength = precioHoy.length();
-      char precios_hora_array[precioHoyLength + 1];
-      precioHoy.toCharArray(precios_hora_array, precioHoyLength + 1);*/
-      /* 1 LINEA: TIMESTAMP 
-       2,3,4.. : Precio_hora[i]*/
-      /*savePriceToday(date, precios_hora_array);  //< GUARDA EL COSTE DE LA LUZ / DIA
-      ESP.reset();                               //Reset ya que el broker es incompatible con la peticion https
-
-    } else {
-      Serial.println("No existe el precio para hoy pero NTP no sincronizado.");
-    }
-  } else {  // existen los precios para hoy
-    Serial.println("Precios diarios: actualizados.");
-    // cuando hay un cambio en la hora respecto a la anterior registrada
-    preciokWh = readPriceNow(3);
-  }
-
-  //El json es local, luego se puede pasar a string 2 veces?
-
-  doc["timestamp"] = timestamp;*/
-
-  /* Esta version contiene menos cosas y se usa para MQTT*/
- /* doc["Vrms"] = serialized(String((float)random(0, 23000) / 100.0, 2));
-  doc["Irms"] = serialized(String((float)random(0, 500) / 100.0, 2));
-  doc["W"] = serialized(String((float)random(0, 115000) / 100.0, 2));
-  doc["VAR"] = serialized(String((float)random(0, 115000) / 100.0, 2));
-  doc["VA"] = serialized(String((float)random(0, 115000) / 100.0, 2));
-  doc["PF"] = serialized(String((float)random(0, 100) / 100.0, 2));*/
-
-
-  /*
-  doc["Vrms"] = serialized(String(rmsVals.VoltageRMSValue/1000, 2));
-  doc["Irms"] = serialized(String(rmsVals.CurrentRMSValue/1000, 2));
-  doc["W"] = serialized(String(powerVals.ActivePowerValue/1000, 2));
-  doc["VAR"] = serialized(String(powerVals.FundReactivePowerValue/1000, 2));
-  doc["VA"] = serialized(String(powerVals.ApparentPowerValue/1000, 2));
-  doc["PF"] = serialized(String(pqVals.PowerFactorValue, 2));*/
-
-  /*  1. leer registro de energia cada 1.024 seg
-      2. acumular energia
-      3. cuando se cambie de hora guardamos los siguientes datos en formato json:  
-        - amountKWh = acumulador;
-        - amountEuro = acumulador * precio;
-        - timestamp = DateTime format -> DateTime.parse('1969-07-20 20:18:04Z');
-
-      -> 24 lineas/dia * 31 dias * 6 meses = 
-
-  */
-
- // serializeJson(doc, toPublish);  ///< from Json to String
-  //char measurement[toPublish.length() + 1];
-  //toPublish.toCharArray(measurement, sizeof(measurement)); //< el broker publica toPublish luego no deberia hacer falta pasarlo a char[]
-
-  /* Esta version contiene mas parametros y se guarda en la microSD */
-  /* Se debería guardar una medida cada hora, acumulador de energia en la SD ??*/
-  /*doc["frec"] = serialized("50.00");
-  doc["Precio"] = serialized(String(precioPorHora[atoi(hora)] / 1000.0, 5));
-  serializeJson(doc, toSave);  ///< from Json to String
-  char data[toSave.length() + 1];
-  toSave.toCharArray(data, sizeof(data));
-  saveEnergyPerHour(mes, dia, data);  // Se guarda la energia consumida durante cada hora en un dia en ./mes/dia.txt
-
-  Serial.println("Número de conexiones hechas: " + (String)numDesconexiones);
-
-  return toPublish;
-}
-*/

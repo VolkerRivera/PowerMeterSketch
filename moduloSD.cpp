@@ -23,6 +23,27 @@ void saveEnergyPerHour(char carpeta[], char archivo[], String measurement) {
   }
 }
 
+String readDataOfThisDay(){
+  String data = "";
+  if (SD.begin(SDCARD_CS_PIN)) {
+    Serial.println("La tarjeta microSD detectada correctamente.");
+    File myFile = SD.open("/05/19.txt", FILE_READ);
+    if (myFile) { // Check if file was opened successfully
+      // Read timestamp (assuming valid format)
+      data = myFile.readString();
+      myFile.close();
+
+      Serial.println("Acceso a la SD: se ha leido el timestamp del registro de energia.");
+
+    } else {
+      Serial.println("Error: No se pudo abrir el archivo energyPerSecond.txt");
+    }
+  } else {
+    Serial.println("ATENCIÓN: No se ha detectado la tarjeta microSD.");
+  }
+  return data;
+}
+
 void saveEnergyPerSecond(String timestamp, float energyAcum){
   if (SD.begin(SDCARD_CS_PIN)) {
     
