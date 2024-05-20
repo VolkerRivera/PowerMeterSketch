@@ -45,6 +45,7 @@ void readandwrite() //metodo que lee los registros de medida y actualiza las var
     /* Read and Print WATT Register using ADE9153A Read Library */
     /* Read and Print WATT Register using ADE9153A Read Library */
     ade9153A.ReadPowerRegs(&powerVals);   // Read power registers
+    ade9153A.ReadEnergyRegs(&energyVals);
     ade9153A.ReadRMSRegs(&rmsVals);     // Read RMS registers
     ade9153A.ReadPQRegs(&pqVals);       // Read PQ registers
     ade9153A.ReadTemperature(&tempVal);  // Read temperature

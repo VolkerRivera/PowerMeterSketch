@@ -5,6 +5,8 @@ uint8_t numDesconexiones = 0;
 /* BROKER MQTT */
 /********************************************/
 
+extern bool transmissionFinished;
+
 bool myMQTTBroker::onConnect(IPAddress addr, uint16_t client_count) {
 
   Serial.println(addr.toString() + " connected");
@@ -28,9 +30,12 @@ void myMQTTBroker::onData(String topic, const char* data, uint32_t length) {
   char data_str[length + 1];
   os_memcpy(data_str, data, length);
   data_str[length] = '\0';
+  //Serial.println("received topic '" + topic + "' with data '" + (String)data_str + "'");
 
-  Serial.println("received topic '" + topic + "' with data '" + (String)data_str + "'");
-  //printClients();
+  if(topic == "broker/register"){
+    if((String)data_str == "updateInfo")
+      transmissionFinished = false;
+  }
 }
 
 
@@ -177,44 +182,36 @@ X509List cert(IRG_Root_X1);*/
 
 /* MUY IMPORTANTE */
 /* Es imprescindible que tanto el certificado como la lista no sean compiladas porque si no dará error */
+String callAPI(void) {
+    String payload = "";
+    if (WiFi.status() == WL_CONNECTED) {
+        std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+        //const String serverURL = "https://api.preciodelaluz.org/v1/prices/all?zone=PCB";
+        //WiFiClientSecure client;
+        client->setInsecure();
+        HTTPClient https;
 
-String callAPI(void) {  //No funciona con el certificado
-  String payload = "";
+        Serial.print("Conectando a: https://api.preciodelaluz.org/v1/prices/all?zone=PCB");
+        //Serial.println(serverURL);
+        https.setUserAgent("Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0");
+        https.begin(*client, "https://api.preciodelaluz.org/v1/prices/all?zone=PCB"); 
+        int httpCode = https.GET();
 
-  if (WiFi.status() == WL_CONNECTED) {
-    
-    /* Necesario hacer una peticion segura para poder relacionar las medidas de consumo de energía por hora al precio de la energía por hora */
-    
-    std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
-    const String serverURL = "https://api.preciodelaluz.org/v1/prices/all?zone=PCB";
+        Serial.print("Código de respuesta: ");
+        Serial.println(httpCode);
 
-    client->setInsecure();
-    HTTPClient https;
-    
-    https.begin(*client, serverURL); // String -> const char[]
-    int httpCode = https.GET();
-
-    if (httpCode > 0) {
-      // HTTP header has been send and Server response header has been handled
-      Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
-
-      // file found at server
-      if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-        payload = https.getString();
-        https.end();  //Liberamos recursos
-        Serial.print("Se ha obtenido la siguiente respuesta del servidor: ");
-        Serial.println(payload);
-        return payload;
-        
-      }
+        if (httpCode > 0 && httpCode == HTTP_CODE_OK) { 
+            payload = https.getString(); 
+            Serial.println("Payload recibido:");
+            Serial.println(payload);
+            https.end(); // Liberar recursos
+            return payload;
+        } else {
+            Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+            https.end(); // Liberar recursos en caso de error también
+        }
     } else {
-      Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+        Serial.println("Error: WiFi desconectado");
     }
-
-    https.end();  //Liberamos recursos
-
-  } else {
-    Serial.println("Error: WiFi desconectado");
-  }
-  return payload;
+    return payload;
 }

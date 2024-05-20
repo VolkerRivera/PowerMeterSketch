@@ -11,7 +11,8 @@
 #include <WiFiClientSecureBearSSL.h>
 
 /* MACROS */
-#define SHOW_TIME_PERIOD 1000 ///< Muestra la hora cada 5 segundos en el loop()
+#define PERIOD_POWER 1500 ///< Muestra la hora cada 5 segundos en el loop()
+#define PERIOD_GRAPHICS 250
 #define NTP_TIMEOUT 5000 ///< Tiempo que tiene el servidor NTP para responder
 #define NTP_RESYNC_SEC 30
 
