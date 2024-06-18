@@ -6,16 +6,12 @@ extern struct PQRegs pqVals;
 extern struct AcalRegs acalVals;
 extern struct Temperature tempVal;
 
-int ledState = LOW;
-int inputState = LOW;
-unsigned long lastReport = 0; //Instante de tiempo en el que se hizo la ultima actualización
-const long reportInterval = 250; //Periodo de actualizacion de registros (originalmente 250)
 const long blinkInterval = 500;
 
 ADE9153AClass ade9153A;
 
 void initADE9153A(void){
-  pinMode(USER_INPUT, INPUT);
+
   pinMode(ADE9153A_RESET_PIN, OUTPUT);
   digitalWrite(ADE9153A_RESET_PIN, HIGH); 
 
@@ -39,23 +35,11 @@ void initADE9153A(void){
 
 void readandwrite() //metodo que lee los registros de medida y actualiza las variables
 { 
-  unsigned long currentReport = micros();
-  if ((currentReport - lastReport) >= reportInterval){
-    lastReport = currentReport;
-    /* Read and Print WATT Register using ADE9153A Read Library */
-    /* Read and Print WATT Register using ADE9153A Read Library */
-    ade9153A.ReadPowerRegs(&powerVals);   // Read power registers
-    ade9153A.ReadEnergyRegs(&energyVals);
-    ade9153A.ReadRMSRegs(&rmsVals);     // Read RMS registers
-    ade9153A.ReadPQRegs(&pqVals);       // Read PQ registers
-    ade9153A.ReadTemperature(&tempVal);  // Read temperature
-  }
-  
-  inputState = digitalRead(USER_INPUT); //< UNICAMENTE SE HACE AUTOCALIBRACION CUANDO SE PULSA USER INPUT 
 
-  if(inputState == LOW){
-    autocalibrateADE9153A();
-  }
+  ade9153A.ReadPowerRegs(&powerVals);   // Read power registers mW, mVAR, mVA
+  ade9153A.ReadEnergyRegs(&energyVals); // mWh, mVARh, mVAh
+  ade9153A.ReadRMSRegs(&rmsVals);     // Read RMS registers mA, mV
+  ade9153A.ReadPQRegs(&pqVals);       // Read PQ registers
 
 }
 
@@ -69,16 +53,15 @@ void resetADE9153A(void) //< Reset del ADE9153A: Falling edge en su pin de RESET
 }
 
 void autocalibrateADE9153A(void){
-    //ade9153A.SetupADE9153A(); //Setup ADE9153A according to ADE9153AAPI.h
     Serial.println("Autocalibrating Current Channel");
     if(!ade9153A.StartAcal_AINormal()) //< Empieza calibracion del canal de corriente A en modo normal
     Serial.println("Error en calibracion CH A I");
-    runLength(20); //< Parpadea el led durante 20 segundos ?
+    runLength(20); //< Espera de 20 segundos
     ade9153A.StopAcal(); //< PFinaliza la autocalibración que se este dando en el canal A
     Serial.println("Autocalibrating Voltage Channel");
     if(!ade9153A.StartAcal_AV()) //< Empieza la autocalibración del canal de tension A
     Serial.println("Error en calibracion CH A V");
-    runLength(40);//< Parpadea el led durante 40 segundos
+    runLength(40);//< Espera de 40 segundos
     ade9153A.StopAcal(); //< Finaliza la autocalibración que se este dando en el canal A
     delay(100); //< Se introduce un delay de 100 ms
     
@@ -108,9 +91,7 @@ void runLength(long seconds)
   unsigned long startTime = millis();
   
   while (millis() - startTime < (seconds*1000)){
-    //digitalWrite(LED_BUILTIN, HIGH);
     delay(blinkInterval);
-    //digitalWrite(LED_BUILTIN, LOW);
     delay(blinkInterval);
   }  
 }

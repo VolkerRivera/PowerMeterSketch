@@ -3,7 +3,48 @@
 #include <SPI.h>
 #include <string>
 
+// Funcion para calcular el mes de hace seis meses (max. rango de almac. de datos)
+uint8_t calcularMesHaceSeis(uint8_t mesActual){
+  if (mesActual > 6) {
+        return mesActual - 6;
+    } else {
+        return mesActual + 12 - 6;
+    }
+}
+
+// Funcion para borrar una carpeta si existe
+void borrarCarpeta(const char* ruta) {
+    if (SD.exists(ruta)) {
+        File dir = SD.open(ruta);
+        while (true) {
+            File entry = dir.openNextFile();
+            if (!entry) {
+                // No more files
+                break;
+            }
+            entry.close();
+            SD.remove(entry.name());
+        }
+        dir.close();
+        SD.rmdir(ruta);
+        Serial.print("Carpeta borrada: ");
+        Serial.println(ruta);
+    } else {
+        Serial.print("La carpeta no existe: ");
+        Serial.println(ruta);
+    }
+}
+
 void saveEnergyPerHour(char carpeta[], char archivo[], String measurement) {
+
+  //formar ruta a borrar
+  uint8_t mesHaceSeis = calcularMesHaceSeis(atoi(carpeta));
+  char rutaDetele[5];
+  sprintf(rutaDetele, "/%02d", mesHaceSeis);
+
+  //borrar carpeta
+  borrarCarpeta(rutaDetele);
+
   // /carpeta/archivo.txt
   char path[11];  // n = 11
   sprintf(path, "/%s/%s.txt", carpeta, archivo);
@@ -26,17 +67,15 @@ void saveEnergyPerHour(char carpeta[], char archivo[], String measurement) {
 String readDataOfThisDay(String filePath){
   String data = "";
   if (SD.begin(SDCARD_CS_PIN)) {
-    Serial.println("La tarjeta microSD detectada correctamente.");
+    //Serial.println("La tarjeta microSD detectada correctamente.");
     File myFile = SD.open(filePath, FILE_READ);
     if (myFile) { // Check if file was opened successfully
       // Read timestamp (assuming valid format)
       data = myFile.readString();
       myFile.close();
 
-      Serial.println("Acceso a la SD: se ha leido el timestamp del registro de energia.");
-
     } else {
-      Serial.println("Error: No se pudo abrir el archivo energyPerSecond.txt");
+      Serial.println("Error: No se pudo abrir el archivo.");
     }
   } else {
     Serial.println("ATENCIÓN: No se ha detectado la tarjeta microSD.");
@@ -53,7 +92,7 @@ void saveEnergyPerSecond(String timestamp, float energyAcum){
     myFile.truncate(0);
 
     myFile.println(timestamp); //linea 0 "%04Y-%02m-%02d %02H:%02M:%02S"
-    myFile.println(energyAcum); //linea 1
+    myFile.println(energyAcum, 20); //linea 1
     myFile.close();
     Serial.println("Acceso a la SD: acumulacion guardada.");
 
@@ -62,6 +101,18 @@ void saveEnergyPerSecond(String timestamp, float energyAcum){
   }
 }
 
+bool existEnergyPerSecondFile(){
+  if (SD.begin(SDCARD_CS_PIN)) {
+    if (SD.exists("energyPerSecond.txt")) {
+      return true;
+    } else {
+      return false;
+  }
+  } else {
+    Serial.println("ATENCIÓN: No se ha detectado la tarjeta microSD.");
+    return false;
+  }
+}
 
 uint8_t readHour_LastMeasure() {
   uint8_t hora_reg = 99; // Default value for empty file
@@ -200,11 +251,8 @@ void savePriceToday(char timestamp[], char precios_hora[]) {
   }
 }
 
-/* IMPORTANT: BE CAREFUL WITH THE API SYNC AND THE LAST PRICE READING OF THE DAY */
-
 float readPrice(uint8_t newHour){ //rangeHourFinished [0, 23] --> i.e : we want to know the price from 01:00 - 02:00 -> newHour = 2 and we want to know the price before this hour
   String precioLeido = "";
-  uint8_t goToThisLine = (newHour == 0) ? 24 : newHour;
 
   if (SD.begin(SDCARD_CS_PIN)) { //comprobamos si esta conectada la sd
     File myFile = SD.open("/precios_hoy.txt", FILE_READ); //abrimos el fichero
@@ -212,7 +260,7 @@ float readPrice(uint8_t newHour){ //rangeHourFinished [0, 23] --> i.e : we want 
 
     while(myFile.available()){ // leemos lineas hasta llegar a la del precio en cuestion
       precioLeido = myFile.readStringUntil('\n'); // aqui no hay \r porque lo hemos escrito manualmente con \n
-      if(numLineaLeida == (newHour)){ // numLineaLeida = 0 -> DateTime last sync API prices **** numLineaLeida = 1 -> price for 00:00 - 01:00 **** numLineaLeida = 2 -> price for 01:00 - 02:00 ... and so on
+      if(numLineaLeida == (newHour+1)){ // numLineaLeida = 0 -> DateTime last sync API prices **** numLineaLeida = 1 -> price for 00:00 - 01:00 **** numLineaLeida = 2 -> price for 01:00 - 02:00 ... and so on
         break;
       }
       numLineaLeida++;

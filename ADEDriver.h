@@ -6,7 +6,7 @@
 #define SPI_SPEED 1000000     //SPI Speed          
 #define CS_PIN 16 //8-->Arduino Zero. 15-->ESP8266 (en nuestro caso 16)
 #define ADE9153A_RESET_PIN 2  //On-board Reset Pin
-#define USER_INPUT 0 //On-board User Input Button Pin
+#define USER_INPUT 0 //On-board User Input Button Pin << ESTE BOTON ES DE LA ADE Y NO LLEGAMOS A USARLO PORQUE QUEDA DENTRO DE LA CAJA
 
 void initADE9153A(void);
 void readandwrite(void);
