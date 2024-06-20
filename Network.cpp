@@ -35,6 +35,7 @@ void myMQTTBroker::onData(String topic, const char* data, uint32_t length) {
   if(topic == "broker/register"){
     if((String)data_str == "updateInfo")
       transmissionFinished = false;
+      Serial.println("Peticion de datos hecha.");
   }
 }
 
@@ -89,6 +90,7 @@ void processSyncEvent(NTPEvent_t ntpEvent) {
     case timeSyncd:
     case partlySync:
       NTPsincronizado = true;
+      
     case syncNotNeeded:
     case accuracyError:  ///< Información sobre el error de precisión
       Serial.printf("[NTP-event] %s\n", NTP.ntpEvent2str(ntpEvent));
@@ -141,11 +143,11 @@ String callAPI(void) {
         std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
         client->setInsecure();
         HTTPClient https;
-
         Serial.print("Conectando a: https://api.preciodelaluz.org/v1/prices/all?zone=PCB");
+        //"https://api.preciodelaluz.org/v1/prices/now?zone=PCB" precio ahora
         https.begin(*client, "https://api.preciodelaluz.org/v1/prices/all?zone=PCB"); 
         int httpCode = https.GET();
-
+        yield();
         Serial.print("Código de respuesta: ");
         Serial.println(httpCode);
 

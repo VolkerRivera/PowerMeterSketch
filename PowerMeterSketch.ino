@@ -4,7 +4,9 @@
 #include "moduloSD.h"
 #include <SD.h>
 #include "ADEDriver.h"
-#include <TimerEvent.h>
+//#include <TimerEvent.h>
+#include <TaskScheduler.h>
+#define _TASK_SELF_DESTRUCT     // Enable tasks to "self-destruct" after disable
 #define SDCARD_CS_PIN 3
 
 struct EnergyRegs energyVals;  //Energy register values are read and stored in EnergyRegs structure
@@ -21,13 +23,23 @@ float acumulador = 0;
 bool transmissionFinished = true;
 bool mdnsUsed = false;
 
+// funciones a ejecutar
+void registerFunction();
+void powerFunction();
+void sendInfo();
+
+Task powertask(1000, TASK_FOREVER, &powerFunction);
+Task graphicstask(1000, TASK_FOREVER, &registerFunction);
+Task sendtask(0, 1, &sendInfo);
+
+Scheduler organizador;
 
 myMQTTBroker myBroker;  ///< Crea un objeto myMQTTBroker
-TimerEvent powerTimer;
-TimerEvent registerTimer;
+//TimerEvent powerTimer;
+//TimerEvent registerTimer;
 
 void setup() {
-  randomSeed((unsigned long)(micros() % millis()));  // new
+  //randomSeed((unsigned long)(micros() % millis()));  // new
   pinMode(SDCARD_CS_PIN, OUTPUT); //GPIO3
   WiFi.mode(WIFI_STA);  ///< explicitly set mode, esp defaults to STA+AP
   Serial.begin(115200);
@@ -98,21 +110,29 @@ void setup() {
 
   delay(1000);
 
+  /* tasks */
+  organizador.init();
+  organizador.addTask(powertask);
+  organizador.addTask(graphicstask);
+
+  powertask.enable();
+  graphicstask.enable();
+
   // Start the broker
   Serial.println("Starting MQTT broker");
   myBroker.init();
   myBroker.subscribe("#");
-  powerTimer.set(1000, powerFunction);
-  registerTimer.set(250, registerFunction);
+  //powerTimer.set(1000, powerFunction);
+  //registerTimer.set(250, registerFunction);
 
   delay(1000);
 }
 
 void loop() {  //<--------------------- LOOP
-  powerTimer.update();
-  registerTimer.update();
+  //powerTimer.update();
+  //registerTimer.update();
+  organizador.execute();
   MDNS.update();
-  //readandwrite();  //Leemos cada 250 us
 
   /*
    * Si salta algún evento SNTP se procesa
@@ -124,10 +144,9 @@ void loop() {  //<--------------------- LOOP
   }
 }
 
-void registerFunction() {  // GESTION GRAPHICS SCREEN
+void sendInfo(){
   File root = SD.open("/"); // abrimos raiz SD
-  if (!transmissionFinished) {
-    registerTimer.disable();
+    //registerTimer.disable();
     // Iterar sobre los archivos y directorios en la raíz
     while (File entry = root.openNextFile()) {
       if (entry.isDirectory() && entry.name() != "System Volume Information") {  // Ignorar carpetas del sistema
@@ -136,19 +155,31 @@ void registerFunction() {  // GESTION GRAPHICS SCREEN
         // Iterar sobre los archivos dentro de cada carpeta (mes)
         File file = SD.open(directorioMes);
         while (File diaFile = file.openNextFile()) {
+          
           if (!diaFile.isDirectory()) {
             String rutaArchivo = directorioMes + "/" + diaFile.name();
             String dialeido = readDataOfThisDay(rutaArchivo);
             Serial.printf("%s -> %s\n", rutaArchivo, dialeido);
             myBroker.publish("broker/register", dialeido);
-            delay(25); // delay para que no se llene la cola
+            //delay(25); // delay para que no se llene la cola
+            yield();
           }
         }
       }
       // No es necesario hacer nada si es un archivo en la raíz, ya que queremos ignorarlos
     }
     transmissionFinished = true;
-    registerTimer.enable();
+    sendtask.disable();
+    organizador.deleteTask(sendtask);
+    Serial.println("sendtask disable and deleted");
+    //registerTimer.enable();
+}
+
+void registerFunction() {  // GESTION GRAPHICS SCREEN
+  if (!transmissionFinished) { // = false
+    organizador.addTask(sendtask);
+    sendtask.enable(); 
+    sendtask.restart();
   }
 }
 
@@ -349,7 +380,7 @@ void powerFunction() {
         /* 1 LINEA: TIMESTAMP 
            2,3,4.. : Precio_hora[i]*/
         savePriceToday(date, precios_hora_array);  //< GUARDA EL COSTE DE LA LUZ / DIA
-        ESP.reset(); // finalmente se resetea la esp
+        //ESP.reset(); // finalmente se resetea la esp
       }
     }  // Si NTP no sincronizado no se hará nada ya que se necesita sincronizacion para llevar control de precios, medidas y guardado con timestamp
     Serial.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
