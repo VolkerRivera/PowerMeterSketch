@@ -145,7 +145,7 @@ String callAPI(void) {
         HTTPClient https;
         Serial.print("Conectando a: https://api.preciodelaluz.org/v1/prices/all?zone=PCB");
         //"https://api.preciodelaluz.org/v1/prices/now?zone=PCB" precio ahora
-        https.begin(*client, "https://api.preciodelaluz.org/v1/prices/all?zone=PCB"); 
+        https.begin(*client, "https://api.preciodelaluz.org/v1/prices/now?zone=PCB"); 
         int httpCode = https.GET();
         yield();
         Serial.print("Código de respuesta: ");

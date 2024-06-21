@@ -29,7 +29,7 @@ void powerFunction();
 void sendInfo();
 
 Task powertask(1000, TASK_FOREVER, &powerFunction);
-Task graphicstask(1000, TASK_FOREVER, &registerFunction);
+Task graphicstask(250, TASK_FOREVER, &registerFunction);
 Task sendtask(0, 1, &sendInfo);
 
 Scheduler organizador;
@@ -145,6 +145,7 @@ void loop() {  //<--------------------- LOOP
 }
 
 void sendInfo(){
+  graphicstask.disable();
   File root = SD.open("/"); // abrimos raiz SD
     //registerTimer.disable();
     // Iterar sobre los archivos y directorios en la raíz
@@ -161,8 +162,8 @@ void sendInfo(){
             String dialeido = readDataOfThisDay(rutaArchivo);
             Serial.printf("%s -> %s\n", rutaArchivo, dialeido);
             myBroker.publish("broker/register", dialeido);
-            //delay(25); // delay para que no se llene la cola
-            yield();
+            delay(25); // delay para que no se llene la cola
+            //yield();
           }
         }
       }
@@ -171,6 +172,7 @@ void sendInfo(){
     transmissionFinished = true;
     sendtask.disable();
     organizador.deleteTask(sendtask);
+    graphicstask.enable();
     Serial.println("sendtask disable and deleted");
     //registerTimer.enable();
 }
@@ -359,8 +361,19 @@ void powerFunction() {
         if (error) {
           Serial.println("deserializeJson() failed: ");
         }
-        //se extraen los 24 precios que contiene el json
+        // from single price json to float
         float precioPorHora[24];
+        memset(precioPorHora, 0, sizeof(precioPorHora));
+        String precioHoy = "";
+        StaticJsonDocument<256> responseJSON;
+        deserializeJson(responseJSON, json);
+        precioPorHora[atoi(hora)] = responseJSON["price"];
+        for (uint8_t i = 0; i < 24; i++) {
+          precioHoy = precioHoy + String(precioPorHora[i] / 1000.0, 5) + "\n";
+        }
+        ///////////////////////////////////////////
+        //se extraen los 24 precios que contiene el json
+        /*float precioPorHora[24];
         String precioHoy = "";
         for (uint8_t i = 0; i < 24; i++) {
           // Construir la clave para cada hora, por ejemplo "00-01", "01-02", etc.
@@ -373,7 +386,7 @@ void powerFunction() {
           precioPorHora[i] = nested["price"];
           //A su vez, concatenamos estos valores para diferentes lineas con 5 decimalaes
           precioHoy = precioHoy + String(precioPorHora[i] / 1000.0, 5) + "\n";
-        }
+        }*/
         int precioHoyLength = precioHoy.length();
         char precios_hora_array[precioHoyLength + 1];
         precioHoy.toCharArray(precios_hora_array, precioHoyLength + 1);

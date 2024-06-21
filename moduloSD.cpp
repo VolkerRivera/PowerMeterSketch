@@ -200,9 +200,11 @@ bool existPriceToday(char timestamp_now[]) {
   String lineaLeida = "0";
   char mes_sd[3];
   char dia_sd[3];
+  char hora_sd[3]; //new
 
   char mes_app[3];
   char dia_app[3];
+  char hora_app[3]; //new
 
   //1 leer la primera linea del txt
   /* Comprobamos si la SD se encuentra insertada */
@@ -216,10 +218,12 @@ bool existPriceToday(char timestamp_now[]) {
     //2 extraer el numero de dia del timestamp del txt
     sprintf(mes_sd, "%c%c", lineaLeida[5], lineaLeida[6]);  //obtenemos el mes del timestamp
     sprintf(dia_sd, "%c%c", lineaLeida[8], lineaLeida[9]);  //obtenemos el dia del timestamp
+    sprintf(hora_sd, "%c%c", lineaLeida[11], lineaLeida[12]); //new
 
     //3 compararlo con el numero de dia extraido del timestamp que se ha introducido por parametro
     sprintf(mes_app, "%c%c", timestamp_now[5], timestamp_now[6]);  //obtenemos el mes del timestamp
     sprintf(dia_app, "%c%c", timestamp_now[8], timestamp_now[9]);  //obtenemos el dia del timestamp
+    sprintf(hora_app, "%c%c", timestamp_now[11], timestamp_now[12]); //new
 
     //4 devolver si es el mismo o no con un bool
     if ((strcmp(mes_sd, mes_app) == 0) && strcmp(dia_sd, dia_app) == 0) {
