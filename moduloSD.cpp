@@ -226,7 +226,7 @@ bool existPriceToday(char timestamp_now[]) {
     sprintf(hora_app, "%c%c", timestamp_now[11], timestamp_now[12]); //new
 
     //4 devolver si es el mismo o no con un bool
-    if ((strcmp(mes_sd, mes_app) == 0) && strcmp(dia_sd, dia_app) == 0) {
+    if ((strcmp(mes_sd, mes_app) == 0) && strcmp(dia_sd, dia_app) == 0 && strcmp(hora_sd, hora_app) == 0) { // new
       return true;
     }
 

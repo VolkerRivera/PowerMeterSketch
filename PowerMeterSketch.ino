@@ -258,7 +258,7 @@ void powerFunction() {
       Serial.println(myBroker.getClientCount());
       Serial.println();
       Serial.println("---------------------------------------");
-
+      //existe precio para ahora NEW
       if (existPriceToday(date)) {  // Funcionamiento deseado <--- Si los precios estan actualizados
 
         // si la medida se ha hecho dentro del mismo rango de hora que la ultima medida registrada -> valido hasta xx:59:59
@@ -272,7 +272,8 @@ void powerFunction() {
 
           Serial.println("NTP sincronizado y precios actualizados. Lectura dentro de la misma hora.");
 
-        } else {
+        } 
+        /*else {
           // si se ha hecho en un rango de hora distinto xx:00:00
           // acumulador = acumulador + ultima medida -> DONE
           // calcular kWh, €, guardar y acumulador y registro de acumulador a 0
@@ -281,7 +282,7 @@ void powerFunction() {
           // FORMAR JSON TO SAVE AQUI
           JsonDocument energyMeasured;
           energyMeasured["amountWh"] = ultima_acumulacion/10.0; // dWh -> Wh 
-          energyMeasured["amountEuro"] = ultima_acumulacion * readPrice(atoi(hora))/10000.0;  // la hora que se introduce es la actual, el precio que se lee es el de la hora que acaba de terminar
+          energyMeasured["amountEuro"] = ultima_acumulacion * readPrice(hora_reg)/10000.0;  // la hora que se introduce es la actual, el precio que se lee es el de la hora que acaba de terminar
           energyMeasured["dateTime"] = date_reg;           // must follow DateTime dart format  ->YYYY-MM-DD HH:MM:SS
           serializeJson(energyMeasured, toSave);
           saveEnergyPerHour(mes, dia, toSave);  // 1st arg: mes_reg, 2nd arg: day_reg, 3rd argument: json structure that includes kWh, euro, DateTime
@@ -290,19 +291,19 @@ void powerFunction() {
           //se actualiza el registro de acumulacion
           saveEnergyPerSecond(date, acumulador);
           Serial.println("NTP sincronizado y precios actualizados. Lectura en cambio de hora.");
-        }
+        }*/
 
-      } else {  // si no existe precio para hoy
+      } else {  // si no existe precio para ahora -> cambio de hora
 
         /* si no tenemos precios porque se ha cambiado de dia
           - antes de ejecutar una peticion a la API y actualizar los precios guardamos lo correspondiente a 23:00 - 23:59
           - reseteamos el registro del acumulador */
 
-        if ((atoi(hora) == 0) && (hora_reg == 23)) {
+        /*if ((atoi(hora) == 0) && (hora_reg == 23)) {
           // FORMAR JSON TO SAVE AQUI
           JsonDocument energyMeasured;
           energyMeasured["amountWh"] = ultima_acumulacion/10; // dWh -> Wh
-          energyMeasured["amountEuro"] = ultima_acumulacion * readPrice(atoi(hora))/10000.0;  // la hora que se introduce es la actual, el precio que se lee es el de la hora que acaba de terminar
+          energyMeasured["amountEuro"] = ultima_acumulacion * readPrice(hora_reg)/10000.0;  // la hora que se introduce es la actual, el precio que se lee es el de la hora que acaba de terminar
           energyMeasured["dateTime"] = date_reg;           // must follow DateTime dart format  ->YYYY-MM-DD HH:MM:SS
           serializeJson(energyMeasured, toSave);
           // se guarda respecto a timestamp de la ultima medida registrada, no la actual
@@ -313,7 +314,8 @@ void powerFunction() {
           saveEnergyPerSecond(date, acumulador);
           Serial.println("NTP sincronizado y precios no actualizados. Lectura en cambio de dia.");
 
-        } else {  // en cualquier otro caso se trata de una medida nueva para el dia -> acumulamos
+        }*/ 
+        //else {  // en cualquier otro caso se trata de una medida nueva para el dia -> acumulamos
           // si no tenemos precios porque no existia ninguno previamente
           // si energyPerSecond.txt no está vacío -> existe una medida correspondiente al ultimo instante de tiempo registrado
           // -> guardamos esa con su date_reg y reseteamos acumulador
@@ -337,7 +339,7 @@ void powerFunction() {
             saveEnergyPerSecond(date, acumulador);
           }
           Serial.println("NTP sincronizado y precios no actualizados. Lectura en cualquier otro caso.");
-        }
+        //}
 
         // independientemente de los casos anteriores -> se ejecuta peticion https y esp reset
 
