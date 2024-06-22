@@ -35,11 +35,8 @@ Task sendtask(0, 1, &sendInfo);
 Scheduler organizador;
 
 myMQTTBroker myBroker;  ///< Crea un objeto myMQTTBroker
-//TimerEvent powerTimer;
-//TimerEvent registerTimer;
 
 void setup() {
-  //randomSeed((unsigned long)(micros() % millis()));  // new
   pinMode(SDCARD_CS_PIN, OUTPUT); //GPIO3
   WiFi.mode(WIFI_STA);  ///< explicitly set mode, esp defaults to STA+AP
   Serial.begin(115200);
@@ -52,8 +49,8 @@ void setup() {
   Serial.println("\n Starting");
 
   // ADE config antes de iniciar redes para no gastar tantos recursos
-  initADE9153A();
-  autocalibrateADE9153A();
+  initADE9153A(); // <<<< si ADE9153A conectada
+  autocalibrateADE9153A(); // <<<< si ADE9153A conectada
 
   if (wm_nonblocking) {  ///< Configura el portal de forma bloqueante o no bloqueante €INIT
     wm.setConfigPortalBlocking(false);
@@ -122,15 +119,11 @@ void setup() {
   Serial.println("Starting MQTT broker");
   myBroker.init();
   myBroker.subscribe("#");
-  //powerTimer.set(1000, powerFunction);
-  //registerTimer.set(250, registerFunction);
 
   delay(1000);
 }
 
 void loop() {  //<--------------------- LOOP
-  //powerTimer.update();
-  //registerTimer.update();
   organizador.execute();
   MDNS.update();
 
@@ -147,7 +140,6 @@ void loop() {  //<--------------------- LOOP
 void sendInfo(){
   graphicstask.disable();
   File root = SD.open("/"); // abrimos raiz SD
-    //registerTimer.disable();
     // Iterar sobre los archivos y directorios en la raíz
     while (File entry = root.openNextFile()) {
       if (entry.isDirectory() && entry.name() != "System Volume Information") {  // Ignorar carpetas del sistema
@@ -163,7 +155,6 @@ void sendInfo(){
             Serial.printf("%s -> %s\n", rutaArchivo, dialeido);
             myBroker.publish("broker/register", dialeido);
             delay(25); // delay para que no se llene la cola
-            //yield();
           }
         }
       }
@@ -174,7 +165,6 @@ void sendInfo(){
     organizador.deleteTask(sendtask);
     graphicstask.enable();
     Serial.println("sendtask disable and deleted");
-    //registerTimer.enable();
 }
 
 void registerFunction() {  // GESTION GRAPHICS SCREEN
@@ -191,7 +181,7 @@ void powerFunction() {
   /************************************************************
    *  Lectura de registros de medida y procesado de los mismos
    ************************************************************/
-  readandwrite(); // <<<<nuevo
+  readandwrite(); // <<<< si ADE9153A conectada
 
   if (numDesconexiones < 5) {  //< Solo funciona normalmente cuando han habido menos de 6 conexiones
     Serial.println("\n\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
@@ -223,21 +213,22 @@ void powerFunction() {
     if (NTPsincronizado) {
       //se actualiza acumulador con el ultimo valor de energia leido
       float ultima_acumulacion = readEnergy_Accumulation(); // acumulacion guardad en sd [dWh]
-      acumulador = ultima_acumulacion + energyVals.ActiveEnergyValue;  //acumulacion guardada en sd + acumulacion ADE ultimo segundo [dWh]
-      Serial.printf("Ultima acumulacion guardada: %f dWh :: Acumulación último segundo: %f dWh ::  Acumulación actual: %f dWh \n", ultima_acumulacion, acumulador, energyVals.ActiveEnergyValue);
-      Serial.printf("Potencia activa: %f W\n", powerVals.ActivePowerValue/1000.0);
-      //acumulador = readEnergy_Accumulation() + (float)random(0, 3) / 100.0;  // <--- ACUMULACION ENERGIA kWh Random
+      acumulador = ultima_acumulacion + energyVals.ActiveEnergyValue;  //acumulacion guardada en sd + acumulacion ADE ultimo segundo [dWh] // <<<< si ADE9153A conectada
+      //acumulador = ultima_acumulacion + (float)random(0, 3) / 100.0;  // <--- ACUMULACION ENERGIA <<<< si ADAE9153A no conectada
+      Serial.printf("Ultima acumulacion guardada: %f dWh :: Acumulación último segundo: %f dWh ::  Acumulación actual: %f dWh \n", ultima_acumulacion, acumulador, energyVals.ActiveEnergyValue); // <<<< si ADE9153A conectada
+      Serial.printf("Potencia activa: %f W\n", powerVals.ActivePowerValue/1000.0); // <<<< si ADE9153A conectada
+      
 
       mqttView["timestamp"] = date;
 
-      // numeros aleatorios
+      // numeros aleatorios <<<< si ADAE9153A no conectada
       /*mqttView["Vrms"] = serialized(String((float)random(22900, 23000) / 100.0, 2));
       mqttView["Irms"] = serialized(String((float)random(499, 500) / 100.0, 2));
       mqttView["W"] = serialized(String((float)random(114990, 115000) / 100.0, 2));
       mqttView["VAR"] = serialized(String((float)random(114990, 115000) / 100.0, 2));
       mqttView["VA"] = serialized(String((float)random(114990, 115000) / 100.0, 2));
       mqttView["PF"] = serialized(String((float)random(90, 100) / 100.0, 2));
-      mqttView["frec"] = serialized("50.00");*/  
+      mqttView["frec"] = serialized("50.00");  */
 
       mqttView["Vrms"] = serialized(String(rmsVals.VoltageRMSValue/1000.0, 2));
       mqttView["Irms"] = serialized(String(rmsVals.CurrentRMSValue/1000.0, 2));
@@ -245,7 +236,7 @@ void powerFunction() {
       mqttView["VAR"] = serialized(String(powerVals.FundReactivePowerValue/1000.0, 2));
       mqttView["VA"] = serialized(String(powerVals.ApparentPowerValue/1000.0, 2));
       mqttView["PF"] = serialized(String(pqVals.PowerFactorValue, 2));
-      mqttView["frec"] = serialized(String(pqVals.FrequencyValue, 2)); 
+      mqttView["frec"] = serialized(String(pqVals.FrequencyValue, 2));
 
       serializeJson(mqttView, mqttViewToPublish);  ///< from Json to String
 
@@ -258,7 +249,7 @@ void powerFunction() {
       Serial.println(myBroker.getClientCount());
       Serial.println();
       Serial.println("---------------------------------------");
-      //existe precio para ahora NEW
+      // si existe precio para hora NTP
       if (existPriceToday(date)) {  // Funcionamiento deseado <--- Si los precios estan actualizados
 
         // si la medida se ha hecho dentro del mismo rango de hora que la ultima medida registrada -> valido hasta xx:59:59
@@ -273,57 +264,16 @@ void powerFunction() {
           Serial.println("NTP sincronizado y precios actualizados. Lectura dentro de la misma hora.");
 
         } 
-        /*else {
-          // si se ha hecho en un rango de hora distinto xx:00:00
-          // acumulador = acumulador + ultima medida -> DONE
-          // calcular kWh, €, guardar y acumulador y registro de acumulador a 0
-          // -> Total kWh esta hora = acumulador
 
-          // FORMAR JSON TO SAVE AQUI
-          JsonDocument energyMeasured;
-          energyMeasured["amountWh"] = ultima_acumulacion/10.0; // dWh -> Wh 
-          energyMeasured["amountEuro"] = ultima_acumulacion * readPrice(hora_reg)/10000.0;  // la hora que se introduce es la actual, el precio que se lee es el de la hora que acaba de terminar
-          energyMeasured["dateTime"] = date_reg;           // must follow DateTime dart format  ->YYYY-MM-DD HH:MM:SS
-          serializeJson(energyMeasured, toSave);
-          saveEnergyPerHour(mes, dia, toSave);  // 1st arg: mes_reg, 2nd arg: day_reg, 3rd argument: json structure that includes kWh, euro, DateTime
-
-          acumulador = energyVals.ActiveEnergyValue;
-          //se actualiza el registro de acumulacion
-          saveEnergyPerSecond(date, acumulador);
-          Serial.println("NTP sincronizado y precios actualizados. Lectura en cambio de hora.");
-        }*/
-
-      } else {  // si no existe precio para ahora -> cambio de hora
-
-        /* si no tenemos precios porque se ha cambiado de dia
-          - antes de ejecutar una peticion a la API y actualizar los precios guardamos lo correspondiente a 23:00 - 23:59
-          - reseteamos el registro del acumulador */
-
-        /*if ((atoi(hora) == 0) && (hora_reg == 23)) {
-          // FORMAR JSON TO SAVE AQUI
-          JsonDocument energyMeasured;
-          energyMeasured["amountWh"] = ultima_acumulacion/10; // dWh -> Wh
-          energyMeasured["amountEuro"] = ultima_acumulacion * readPrice(hora_reg)/10000.0;  // la hora que se introduce es la actual, el precio que se lee es el de la hora que acaba de terminar
-          energyMeasured["dateTime"] = date_reg;           // must follow DateTime dart format  ->YYYY-MM-DD HH:MM:SS
-          serializeJson(energyMeasured, toSave);
-          // se guarda respecto a timestamp de la ultima medida registrada, no la actual
-          saveEnergyPerHour(mes_reg, dia_reg, toSave);  // 1st arg: mes_reg, 2nd arg: day_reg, 3rd argument: json structure that includes kWh, euro, DateTime
-
-          acumulador = energyVals.ActiveEnergyValue;
-          //se actualiza el registro de acumulacion
-          saveEnergyPerSecond(date, acumulador);
-          Serial.println("NTP sincronizado y precios no actualizados. Lectura en cambio de dia.");
-
-        }*/ 
-        //else {  // en cualquier otro caso se trata de una medida nueva para el dia -> acumulamos
+      } else {  // si no existe precio para hora NTP -> cambio de hora
           // si no tenemos precios porque no existia ninguno previamente
           // si energyPerSecond.txt no está vacío -> existe una medida correspondiente al ultimo instante de tiempo registrado
           // -> guardamos esa con su date_reg y reseteamos acumulador
           // - reseteamos el registro del acumulador
           // - guardamos medida
 
-          if(!existEnergyPerSecondFile()){
-            // SI ENERGYPERSECOND.TXT NO EXISTE LO CREA Y GUARDA
+          if(!existEnergyPerSecondFile()){ //caso de la primera medida de todas donde no existe archivo de acumulacion ni precio
+            // SI ENERGYPERSECOND.TXT NO EXISTE LO CREA Y GUARDA (ademas no exportara ningun consumo [Wh][€])
             saveEnergyPerSecond(date, acumulador);  //se actualiza el registro de acumulacion
 
           }else{
@@ -334,17 +284,14 @@ void powerFunction() {
             energyMeasured["dateTime"] = date_reg; 
             serializeJson(energyMeasured, toSave);
             saveEnergyPerHour(mes_reg, dia_reg, toSave);
-            acumulador = energyVals.ActiveEnergyValue;
+            acumulador = energyVals.ActiveEnergyValue; // <<<< si ADE9153A conectada
+            //acumulador = (float)random(0, 3) / 100.0; // <<<< si ADAE9153A no conectada
             //se actualiza el registro de acumulacion
             saveEnergyPerSecond(date, acumulador);
           }
-          Serial.println("NTP sincronizado y precios no actualizados. Lectura en cualquier otro caso.");
-        //}
+        Serial.println("NTP sincronizado y precios no actualizados. Lectura en cualquier otro caso.");
 
-        // independientemente de los casos anteriores -> se ejecuta peticion https y esp reset
-
-        //se intentan peticiones al servidor hasta que devuelva datos -> gestionar max 20 peticiones / min
-        //si estamos sincronizados pero no tenemos los precios -> podemos acumular pero no guardar
+        // independientemente de los casos anteriores -> se ejecuta peticion https
 
         String json;  //JSON que nos devuelve la API de precios
 
@@ -357,45 +304,25 @@ void powerFunction() {
           Serial.println("callAPI no ha devuelto nada");  // <--- Ahora mismo unicamente para debugear errores
         }
         //en caso de no estar vacio se forma JSON
-        DynamicJsonDocument precioDoc(4096);  //JSON solo con los precios
-        DeserializationError error = deserializeJson(precioDoc, json);
-        //si ocurre algun error al formar  JSON se reporta
-        if (error) {
-          Serial.println("deserializeJson() failed: ");
-        }
         // from single price json to float
         float precioPorHora[24];
         memset(precioPorHora, 0, sizeof(precioPorHora));
         String precioHoy = "";
         StaticJsonDocument<256> responseJSON;
-        deserializeJson(responseJSON, json);
+        DeserializationError error = deserializeJson(responseJSON, json);
+        //si ocurre algun error al formar  JSON se reporta
+        if (error) {
+          Serial.println("deserializeJson() failed: ");
+        }
         precioPorHora[atoi(hora)] = responseJSON["price"];
         for (uint8_t i = 0; i < 24; i++) {
           precioHoy = precioHoy + String(precioPorHora[i] / 1000.0, 5) + "\n";
         }
         ///////////////////////////////////////////
-        //se extraen los 24 precios que contiene el json
-        /*float precioPorHora[24];
-        String precioHoy = "";
-        for (uint8_t i = 0; i < 24; i++) {
-          // Construir la clave para cada hora, por ejemplo "00-01", "01-02", etc.
-          char entry[6];
-          sprintf(entry, "%02d-%02d", i, (i + 1));
-          // Acceder al objeto anidado usando la clave
-          JsonObject nested = precioDoc[entry];  // Obtiene el JSON dentro de esa entry
-
-          // Extraer el valor de "price" y almacenarlo en el array de 24 doubles precioPorHora
-          precioPorHora[i] = nested["price"];
-          //A su vez, concatenamos estos valores para diferentes lineas con 5 decimalaes
-          precioHoy = precioHoy + String(precioPorHora[i] / 1000.0, 5) + "\n";
-        }*/
         int precioHoyLength = precioHoy.length();
         char precios_hora_array[precioHoyLength + 1];
         precioHoy.toCharArray(precios_hora_array, precioHoyLength + 1);
-        /* 1 LINEA: TIMESTAMP 
-           2,3,4.. : Precio_hora[i]*/
         savePriceToday(date, precios_hora_array);  //< GUARDA EL COSTE DE LA LUZ / DIA
-        //ESP.reset(); // finalmente se resetea la esp
       }
     }  // Si NTP no sincronizado no se hará nada ya que se necesita sincronizacion para llevar control de precios, medidas y guardado con timestamp
     Serial.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
